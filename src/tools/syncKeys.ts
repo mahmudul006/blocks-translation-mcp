@@ -23,7 +23,7 @@ export function registerSyncKeys(server: McpServer, client: BlocksClient) {
       title: 'Dedup-check, build, and write a Blocks upload in one call',
       description:
         'The one-call path for adding new translation keys: resolves the module by name (cached to disk), ' +
-        'dedup-checks every key against the target module + root + generic-app, skips any key whose exact ' +
+        'dedup-checks every key against the target module + any BLOCKS_DEDUP_MODULES, skips any key whose exact ' +
         'KeyName already exists in the target module (would overwrite/duplicate), builds portal-ready upload ' +
         'entries for the rest, and — if outputPath is given — writes them straight to disk. Keys with the ' +
         'same English text under a DIFFERENT existing key are NOT auto-skipped (reusing them means changing ' +
@@ -39,7 +39,7 @@ export function registerSyncKeys(server: McpServer, client: BlocksClient) {
         extraModuleNames: z
           .array(z.string())
           .optional()
-          .describe('Additional module names to dedup-check beyond the target/root/generic-app default.'),
+          .describe('Additional module names to dedup-check beyond the target module and BLOCKS_DEDUP_MODULES.'),
         outputPath: z
           .string()
           .optional()

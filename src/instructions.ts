@@ -14,7 +14,8 @@ the user for the wording instead of searching files.
 Standard workflow when the user asks to sync / check / upload translation keys — stay cheap:
 1. prepare_sync — ONE call, even if the diff spans several modules. It scans the diff (working-tree
    + staged + untracked), groups keys BY THEIR OWN module, fetches the tenant cultures, and
-   exact-dedupes. It returns { cultures, modules: [{ module, newKeys, existingSkip }] }. Do NOT call
+   exact-dedupes each module's keys against that module (plus any BLOCKS_DEDUP_MODULES, none by
+   default). It returns { cultures, modules: [{ module, newKeys, existingSkip }] }. Do NOT call
    find_keys / list_modules / list_cultures / search_keys yourself — prepare_sync replaces them, and
    do NOT re-call it per module (it already grouped them).
 2. If every module's newKeys is empty, report "nothing new to upload" and stop.

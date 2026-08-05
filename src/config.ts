@@ -61,9 +61,11 @@ export function getConfig(): BlocksConfig {
     outputPathPattern:
       get('BLOCKS_OUTPUT_PATH_PATTERN') ||
       'blocks-translation-helper/blocks-upload.{module}.generated.json',
+    // No hardcoded defaults — many tenants have no "root"/"generic-app" modules. Opt in via
+    // BLOCKS_DEDUP_MODULES. The target module is always checked regardless of this list.
     defaultDedupModules: dedup
       ? dedup.split(',').map((s) => s.trim()).filter(Boolean)
-      : ['root', 'generic-app'],
+      : [],
     origin: (get('BLOCKS_ORIGIN') || 'https://cloud.seliseblocks.com').replace(/\/$/, ''),
   };
   return cached;

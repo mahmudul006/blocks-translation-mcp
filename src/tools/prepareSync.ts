@@ -33,7 +33,7 @@ export function registerPrepareSync(server: McpServer, client: BlocksClient) {
         'The FIRST and usually ONLY prep call for a translation sync. Scans the project diff ' +
         '(working-tree + staged + untracked), groups the found keys BY THEIR OWN module (from each ' +
         "key's prefix), fetches the tenant cultures, and exact-dedupes each module's keys against that " +
-        'module + configured dedup modules (root, generic-app) — all in code, no LLM work. Handles a ' +
+        'module + any modules in BLOCKS_DEDUP_MODULES (none by default) — all in code, no LLM work. Handles a ' +
         'diff spanning several modules in ONE call. Returns { cultures, modules: [{ module, newKeys, ' +
         'existingSkip }] }. Do NOT call find_keys / list_modules / list_cultures / search_keys ' +
         'separately — this replaces them. Then, for each module with non-empty newKeys, infer English ' +

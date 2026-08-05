@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { BlocksUploadEntry, TranslatedResource } from './types.js';
 
 export function assembleUploadEntries(
@@ -12,7 +11,8 @@ export function assembleUploadEntries(
     const isPartiallyTranslated = !cultures.every((c) => providedCultures.has(c));
 
     return {
-      _id: randomUUID(),
+      // Left empty on purpose — the Blocks portal assigns the _id on import.
+      _id: '',
       TenantId: tenantId,
       KeyName: keyName,
       ModuleId: moduleId,

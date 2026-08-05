@@ -44,28 +44,38 @@ cp .env.blocks-translation.example /path/to/your/project/.env.blocks-translation
 | `find_keys` | Standalone: extract translation keys from the git diff for the configured framework (`ngx-translate` \| `react-i18next` \| `generic`). |
 | `list_cultures` | The tenant's supported cultures (from the Blocks Language API, cached). `refresh:true` re-fetches. |
 | `list_modules` | Modules in the tenant (name + id). |
-| `search_keys` | Dedup-check keys against a module + `root` + `generic-app` (both exact-key and same-text). |
+| `search_keys` | Dedup-check keys against a module (+ any `BLOCKS_DEDUP_MODULES`) — both exact-key and same-text. |
 | `build_upload_entries` | Pure JSON assembly of already-translated keys into the portal's import shape. |
 
 Most of the time the agent only needs **`prepare_sync` → `sync_keys`**; the rest are composable building blocks.
 
 ## Install
 
+### Recommended: one command (auto-detects your AI tools)
+
 ```bash
-git clone <repo-url> blocks-translation-mcp
-cd blocks-translation-mcp
-npm install
-npm run build     # builds dist/index.js — the entrypoint every client runs with `node`
+npx -y github:mahmudul006/blocks-translation-mcp install
 ```
 
-Requires Node ≥ 18. The built server has no runtime dependency on `tsx`.
+This detects the AI tools installed on your machine (Claude Code, Cursor, Codex, Antigravity, Pi, Windsurf, Cline, VS Code, Zed…), asks **global vs project**, and registers the server into each — using each tool's own CLI or config format. It backs up any file before editing and only ever touches its own `blocks-translation` entry. Add `--print` for a dry run (shows every planned change, writes nothing). Requires Node ≥ 18; no clone or build.
+
+Then [configure your project](#configure-your-project) (the `.env.blocks-translation`) and restart your tool.
+
+### Manual / from source
+
+If you'd rather not use `npx github:`, clone and build, then use the per-client blocks below with `node /abs/path/to/dist/index.js` instead of the `npx` command:
+
+```bash
+git clone https://github.com/mahmudul006/blocks-translation-mcp
+cd blocks-translation-mcp && npm install && npm run build
+```
 
 ## Add to your AI tool
 
-Every client runs the **same** stdio command:
+The installer above does this for you. To do it by hand, every client runs the **same** stdio command:
 
 ```
-node /abs/path/to/blocks-translation-mcp/dist/index.js
+npx -y github:mahmudul006/blocks-translation-mcp
 ```
 
 Only two things differ per client: **where** the config lives and its **wrapper key** (`mcpServers` JSON, VS Code's `servers`, Zed's `context_servers`, or Codex's TOML). If your client doesn't start the server with its working directory set to your project root, add `"BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project"` to the server's `env` (see [How the server finds your project](#how-the-server-finds-your-project)).
@@ -73,15 +83,15 @@ Only two things differ per client: **where** the config lives and its **wrapper 
 ### Claude Code
 
 ```bash
-claude mcp add blocks-translation -- node /abs/path/to/blocks-translation-mcp/dist/index.js
+claude mcp add blocks-translation -- npx -y github:mahmudul006/blocks-translation-mcp
 ```
 
 or in `.mcp.json` (project) / `~/.claude.json` (global):
 
 ```json
 { "mcpServers": { "blocks-translation": {
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"]
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"]
 } } }
 ```
 
@@ -93,8 +103,8 @@ Claude Code sets the server's `cwd` to your project root, so `.env.blocks-transl
 
 ```json
 { "mcpServers": { "blocks-translation": {
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "env": { "BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project" }
 } } }
 ```
@@ -105,8 +115,8 @@ Claude Code sets the server's `cwd` to your project root, so `.env.blocks-transl
 
 ```toml
 [mcp_servers.blocks-translation]
-command = "node"
-args = ["/abs/path/to/blocks-translation-mcp/dist/index.js"]
+command = "npx"
+args = ["-y", "github:mahmudul006/blocks-translation-mcp"]
 
 [mcp_servers.blocks-translation.env]
 BLOCKS_PROJECT_ROOT = "/abs/path/to/your/project"
@@ -115,7 +125,7 @@ BLOCKS_PROJECT_ROOT = "/abs/path/to/your/project"
 or via CLI:
 
 ```bash
-codex mcp add blocks-translation --env BLOCKS_PROJECT_ROOT=/abs/path/to/your/project -- node /abs/path/to/blocks-translation-mcp/dist/index.js
+codex mcp add blocks-translation --env BLOCKS_PROJECT_ROOT=/abs/path/to/your/project -- npx -y github:mahmudul006/blocks-translation-mcp
 ```
 
 ### Google Antigravity
@@ -124,8 +134,8 @@ In the IDE: **Manage MCP Servers → View raw config**, or edit `.agents/mcp_con
 
 ```json
 { "mcpServers": { "blocks-translation": {
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "env": { "BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project" }
 } } }
 ```
@@ -136,8 +146,8 @@ In the IDE: **Manage MCP Servers → View raw config**, or edit `.agents/mcp_con
 
 ```json
 { "mcpServers": { "blocks-translation": {
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "cwd": "/abs/path/to/your/project"
 } } }
 ```
@@ -150,8 +160,8 @@ Because Pi loads `.mcp.json` from the project cwd, a project-local config also f
 
 ```json
 { "mcpServers": { "blocks-translation": {
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "env": { "BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project" }
 } } }
 ```
@@ -162,8 +172,8 @@ Cline → **MCP Servers → Configure** (`cline_mcp_settings.json`):
 
 ```json
 { "mcpServers": { "blocks-translation": {
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "env": { "BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project" }
 } } }
 ```
@@ -175,8 +185,8 @@ Cline → **MCP Servers → Configure** (`cline_mcp_settings.json`):
 ```json
 { "servers": { "blocks-translation": {
   "type": "stdio",
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "env": { "BLOCKS_PROJECT_ROOT": "${workspaceFolder}" }
 } } }
 ```
@@ -188,8 +198,8 @@ Cline → **MCP Servers → Configure** (`cline_mcp_settings.json`):
 ```json
 { "context_servers": { "blocks-translation": {
   "source": "custom",
-  "command": "node",
-  "args": ["/abs/path/to/blocks-translation-mcp/dist/index.js"],
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
   "env": { "BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project" }
 } } }
 ```
@@ -198,8 +208,8 @@ Cline → **MCP Servers → Configure** (`cline_mcp_settings.json`):
 
 Any client that speaks MCP over stdio works. Register a stdio server with:
 
-- **command:** `node`
-- **args:** `["/abs/path/to/blocks-translation-mcp/dist/index.js"]`
+- **command:** `npx`
+- **args:** `["-y", "github:mahmudul006/blocks-translation-mcp"]`
 - **env (optional):** `BLOCKS_PROJECT_ROOT` (if the client doesn't set `cwd` to your repo), or the full `BLOCKS_*` set instead of a `.env` file.
 
 ## Configure your project
@@ -226,7 +236,7 @@ Config is read lazily, only when a tool runs, with this precedence per key: **ex
 | `BLOCKS_FRAMEWORK` | No | `ngx-translate` | Key extraction: `ngx-translate` \| `react-i18next` \| `generic`. |
 | `BLOCKS_KEY_REGEX` | Only if `BLOCKS_FRAMEWORK=generic` | — | Regex whose first capture group is the key. |
 | `BLOCKS_OUTPUT_PATH_PATTERN` | No | `blocks-translation-helper/blocks-upload.{module}.generated.json` | Output path template; `{module}` is substituted. |
-| `BLOCKS_DEDUP_MODULES` | No | `root,generic-app` | Comma-separated modules always dedup-checked alongside the target. Missing modules are tolerated. |
+| `BLOCKS_DEDUP_MODULES` | No | *(empty)* | Comma-separated shared modules to also dedup-check alongside the target (e.g. `root,generic-app` if your tenant has them). Missing modules are tolerated. |
 | `BLOCKS_PROJECT_ROOT` | Only if your client doesn't set `cwd` to your repo | current working directory | Points the server at your project's root. |
 
 ## How it works

@@ -10,6 +10,7 @@ test('IsPartiallyTranslated is false only when all tenant cultures are present',
   assert.equal(full.IsPartiallyTranslated, false);
   assert.equal(full.ModuleId, 'mod');
   assert.equal(full.TenantId, 'ten');
+  assert.equal(full._id, ''); // portal assigns the id on import
 
   const [partial] = assembleUploadEntries('mod', 'ten', [
     { keyName: 'K.PART', resources: [ { culture: 'en-US', value: 'a' } ] },

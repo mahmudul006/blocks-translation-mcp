@@ -37,7 +37,7 @@ test('loads config from $BLOCKS_PROJECT_ROOT/.env.blocks-translation', async () 
   const cfg = getConfig();
   assert.equal(cfg.tenantId, 'from-file');
   assert.equal(cfg.framework, 'react-i18next');
-  assert.deepEqual(cfg.defaultDedupModules, ['root', 'generic-app']);
+  assert.deepEqual(cfg.defaultDedupModules, []); // no hardcoded defaults; opt in via BLOCKS_DEDUP_MODULES
 });
 
 test('explicit env var overrides the file, per key', async () => {
