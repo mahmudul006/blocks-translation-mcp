@@ -74,9 +74,11 @@ export const CLIENTS: ClientDef[] = [
     id: 'antigravity',
     label: 'Google Antigravity',
     wrapperKey: 'mcpServers',
+    // Global config is ~/.gemini/config/mcp_config.json (per Antigravity's bundled docs);
+    // ~/.gemini/antigravity-cli/mcp_config.json is a legacy path the current CLI ignores.
     json: (scope, root) =>
-      scope === 'project' ? join(root, '.agents', 'mcp_config.json') : join(home, '.gemini', 'antigravity-cli', 'mcp_config.json'),
-    installedHint: () => existsSync(join(home, '.gemini')),
+      scope === 'project' ? join(root, '.agents', 'mcp_config.json') : join(home, '.gemini', 'config', 'mcp_config.json'),
+    installedHint: () => existsSync(join(home, '.gemini', 'config')) || existsSync(join(home, '.gemini')),
   },
   {
     id: 'pi',
