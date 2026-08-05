@@ -95,6 +95,14 @@ function renderSnippet(wrapperKey: string, entry: object, format: 'json' | 'toml
   return JSON.stringify({ [wrapperKey]: { 'blocks-translation': entry } }, null, 2);
 }
 
+/** Accepts 1/2, p/g, or the words "project"/"global". Anything else → project. */
+function parseScope(input: string): Scope {
+  const v = input.trim().toLowerCase();
+  return v === '2' || v.startsWith('g') ? 'global' : 'project';
+}
+
+const SCOPE_PROMPT = 'Install scope — 1) project (this repo only)  2) global (all projects)';
+
 function getFlag(args: string[], name: string): string | undefined {
   const eq = args.find((a) => a.startsWith(`--${name}=`));
   if (eq) return eq.slice(name.length + 3);
@@ -116,14 +124,12 @@ export async function runInstaller(args: string[]): Promise<void> {
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const ask = async (q: string, def: string): Promise<string> => {
-    if (auto) return def;
+    if (auto || dryRun) return def; // dry run is non-interactive: use defaults for anything not flagged
     const a = (await rl.question(`${q} [${def}] `)).trim();
     return a || def;
   };
 
-  const scope = ((scopeFlag ?? (await ask('Install scope — "global" (all projects) or "project" (this repo only)?', 'project'))).toLowerCase().startsWith('g')
-    ? 'global'
-    : 'project') as Scope;
+  const scope = parseScope(scopeFlag ?? (await ask(SCOPE_PROMPT, '1')));
 
   let root = process.cwd();
   if (scope === 'project') root = rootFlag ?? (await ask('Project root', process.cwd()));
@@ -179,9 +185,12 @@ export async function runInstaller(args: string[]): Promise<void> {
     const target = join(root, '.env.blocks-translation');
     const example = join(repoRoot, '.env.blocks-translation.example');
     if (!existsSync(target) && existsSync(example)) {
-      const yes = (await ask(`\nCreate ${target} from the example?`, 'y')).toLowerCase().startsWith('y');
-      if (yes && !dryRun) { copyFileSync(example, target); written.push(target); }
-      else if (yes) written.push(`(would create) ${target}`);
+      if (dryRun) {
+        written.push(`(would offer to create) ${target}`);
+      } else {
+        const yes = (await ask(`\nCreate ${target} from the example?`, 'y')).toLowerCase().startsWith('y');
+        if (yes) { copyFileSync(example, target); written.push(target); }
+      }
     }
   }
 
@@ -223,12 +232,11 @@ export async function runUninstaller(args: string[]): Promise<void> {
   const rootFlag = getFlag(args, 'root');
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const ask = async (q: string, def: string): Promise<string> => (args.includes('--yes') ? def : (await rl.question(`${q} [${def}] `)).trim() || def);
+  const ask = async (q: string, def: string): Promise<string> =>
+    args.includes('--yes') || dryRun ? def : (await rl.question(`${q} [${def}] `)).trim() || def;
 
   console.log(`\nBlocks Translation MCP uninstaller${dryRun ? '   (dry run — no changes)' : ''}\n`);
-  const scope = ((scopeFlag ?? (await ask('Which install to remove — "global" or "project"?', 'project'))).toLowerCase().startsWith('g')
-    ? 'global'
-    : 'project') as Scope;
+  const scope = parseScope(scopeFlag ?? (await ask('Which install to remove — 1) project  2) global', '1')));
   const root = scope === 'project' ? (rootFlag ?? (await ask('Project root', process.cwd()))) : process.cwd();
   rl.close();
 
