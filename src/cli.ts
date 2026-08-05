@@ -6,6 +6,9 @@ const cmd = process.argv[2];
 if (cmd === 'install') {
   const { runInstaller } = await import('./install/installer.js');
   await runInstaller(process.argv.slice(3));
+} else if (cmd === 'uninstall' || cmd === 'remove') {
+  const { runUninstaller } = await import('./install/installer.js');
+  await runUninstaller(process.argv.slice(3));
 } else {
   await import('./index.js'); // boots the MCP stdio server
 }

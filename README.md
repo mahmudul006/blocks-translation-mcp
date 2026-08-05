@@ -57,9 +57,30 @@ Most of the time the agent only needs **`prepare_sync` → `sync_keys`**; the re
 npx -y github:mahmudul006/blocks-translation-mcp install
 ```
 
-This detects the AI tools installed on your machine (Claude Code, Cursor, Codex, Antigravity, Pi, Windsurf, Cline, VS Code, Zed…), asks **global vs project**, and registers the server into each — using each tool's own CLI or config format. It backs up any file before editing and only ever touches its own `blocks-translation` entry. Add `--print` for a dry run (shows every planned change, writes nothing). Requires Node ≥ 18; no clone or build.
+This detects the AI tools installed on your machine (Claude Code, Cursor, Codex, Antigravity, Pi, Windsurf, Cline, VS Code, Zed…), asks **global vs project**, and registers the server into each — using each tool's own CLI or config format. It backs up any file before editing and only ever touches its own `blocks-translation` entry.
 
-Then [configure your project](#configure-your-project) (the `.env.blocks-translation`) and restart your tool.
+Flags (all optional — omit them to be prompted):
+
+| Flag | Effect |
+| --- | --- |
+| `--print` | Dry run: show every planned change, write nothing. |
+| `--scope global\|project` | Skip the scope prompt. |
+| `--root <path>` | Project root for a project install (default: current dir). |
+| `--clients all\|1,3,5` | Skip the client picker. |
+| `--yes` | Accept all defaults (non-interactive). |
+
+Requires Node ≥ 18; no clone or build. Then [configure your project](#configure-your-project) (the `.env.blocks-translation`) and restart your tool.
+
+### Uninstall / re-try
+
+```bash
+npx -y github:mahmudul006/blocks-translation-mcp uninstall           # prompts for scope
+npx -y github:mahmudul006/blocks-translation-mcp uninstall --scope global --yes
+```
+
+Removes only the `blocks-translation` entry from each tool (via its remove-CLI or by editing its config, backing up first), and lists any you must remove by hand. Accepts the same `--scope` / `--root` / `--print` flags.
+
+> **Re-fetching a new version:** `npx github:` caches the cloned repo, so after the server is updated on GitHub, clear the cache before re-running: `rm -rf ~/.npm/_npx`.
 
 ### Manual / from source
 

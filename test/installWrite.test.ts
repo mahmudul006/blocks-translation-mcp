@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyJson } from '../src/install/installer.js';
+import { applyJson, removeJson } from '../src/install/installer.js';
 
 test('applyJson creates the file + parent dir when absent', () => {
   const dir = mkdtempSync(join(tmpdir(), 'blocks-inst-'));
@@ -29,6 +29,25 @@ test('applyJson preserves existing entries and backs up before overwriting', () 
     assert.equal(cfg.misc, 42); // untouched
     assert.ok(cfg.mcpServers['blocks-translation']); // ours added
     assert.ok(readdirSync(dir).some((f) => f.startsWith('mcp.json.bak-'))); // backup made
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('removeJson removes only our entry, preserves others, backs up; reports absent/nofile', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'blocks-inst-'));
+  try {
+    const path = join(dir, 'mcp.json');
+    assert.equal(removeJson(path, 'mcpServers'), 'nofile'); // not created yet
+
+    writeFileSync(path, JSON.stringify({ mcpServers: { other: { command: 'keep' }, 'blocks-translation': { command: 'npx' } } }));
+    assert.equal(removeJson(path, 'mcpServers'), 'removed');
+    const cfg = JSON.parse(readFileSync(path, 'utf-8'));
+    assert.deepEqual(cfg.mcpServers.other, { command: 'keep' });
+    assert.ok(!cfg.mcpServers['blocks-translation']);
+    assert.ok(readdirSync(dir).some((f) => f.startsWith('mcp.json.bak-')));
+
+    assert.equal(removeJson(path, 'mcpServers'), 'absent'); // already gone
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

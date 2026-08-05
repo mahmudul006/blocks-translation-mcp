@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { createInterface } from 'node:readline/promises';
 import { CLIENTS, binOnPath, type ClientDef, type Scope } from './clients.js';
 import { npxSpecFromRepository } from './npxSpec.js';
-import { upsertMcpServer } from './mergeJson.js';
+import { upsertMcpServer, removeMcpServer } from './mergeJson.js';
 
 const run = promisify(execFile);
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url)); // dist/install/ -> repo root
@@ -60,6 +60,22 @@ export function applyJson(path: string, wrapperKey: 'mcpServers' | 'servers' | '
   const next = upsertMcpServer(config, 'blocks-translation', entry, wrapperKey);
   writeFileSync(path, JSON.stringify(next, null, 2) + '\n');
   return path;
+}
+
+/** Removes our entry from a JSON config. Returns a status string; backs up before writing. */
+export function removeJson(path: string, wrapperKey: 'mcpServers' | 'servers' | 'context_servers'): 'removed' | 'absent' | 'nofile' {
+  if (!existsSync(path)) return 'nofile';
+  let config: Record<string, unknown>;
+  try {
+    config = JSON.parse(readFileSync(path, 'utf-8'));
+  } catch {
+    throw new Error(`existing config at ${path} is not plain JSON (comments?) — remove the "blocks-translation" entry manually.`);
+  }
+  const { changed, config: next } = removeMcpServer(config, 'blocks-translation', wrapperKey);
+  if (!changed) return 'absent';
+  copyFileSync(path, `${path}.bak-${timestamp()}`);
+  writeFileSync(path, JSON.stringify(next, null, 2) + '\n');
+  return 'removed';
 }
 
 function renderSnippet(wrapperKey: string, entry: object, format: 'json' | 'toml'): string {
@@ -199,4 +215,52 @@ export async function runInstaller(args: string[]): Promise<void> {
     console.log('        (run this from inside the project and choose "project") is more reliable.');
   }
   console.log('');
+}
+
+export async function runUninstaller(args: string[]): Promise<void> {
+  const dryRun = args.includes('--print') || args.includes('--dry-run');
+  const scopeFlag = getFlag(args, 'scope');
+  const rootFlag = getFlag(args, 'root');
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const ask = async (q: string, def: string): Promise<string> => (args.includes('--yes') ? def : (await rl.question(`${q} [${def}] `)).trim() || def);
+
+  console.log(`\nBlocks Translation MCP uninstaller${dryRun ? '   (dry run — no changes)' : ''}\n`);
+  const scope = ((scopeFlag ?? (await ask('Which install to remove — "global" or "project"?', 'project'))).toLowerCase().startsWith('g')
+    ? 'global'
+    : 'project') as Scope;
+  const root = scope === 'project' ? (rootFlag ?? (await ask('Project root', process.cwd()))) : process.cwd();
+  rl.close();
+
+  const done: string[] = [];
+  const manual: string[] = [];
+  const failed: string[] = [];
+
+  for (const client of CLIENTS) {
+    try {
+      if (client.cliBin && binOnPath(client.cliBin) && client.cliRemoveArgs) {
+        const cmd = `${client.cliBin} ${client.cliRemoveArgs(scope).join(' ')}`;
+        if (dryRun) { done.push(`(would run) ${cmd}`); continue; }
+        await run(client.cliBin, client.cliRemoveArgs(scope)).catch(() => { /* not present there — fine */ });
+        done.push(cmd);
+        continue;
+      }
+      const path = client.json?.(scope, root);
+      if (path) {
+        if (dryRun) { done.push(`(would clean) ${path}`); continue; }
+        const res = removeJson(path, client.wrapperKey);
+        if (res === 'removed') done.push(`cleaned ${path}`);
+        continue;
+      }
+      manual.push(`${client.label}: remove the "blocks-translation" entry yourself`);
+    } catch (err) {
+      failed.push(`${client.label}: ${(err as Error).message}`);
+    }
+  }
+
+  console.log('──────────── Summary ────────────');
+  if (done.length) { console.log('Removed:'); done.forEach((d) => console.log(`  • ${d}`)); }
+  if (manual.length) { console.log('Remove manually:'); manual.forEach((m) => console.log(`  • ${m}`)); }
+  if (failed.length) { console.log('Skipped:'); failed.forEach((f) => console.log(`  • ${f}`)); }
+  console.log('\nTip: to re-fetch a pushed update on the next run, clear the npx cache: rm -rf ~/.npm/_npx\n');
 }

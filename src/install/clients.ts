@@ -21,6 +21,7 @@ export interface ClientDef {
   /** Preferred CLI (used if its bin is on PATH). */
   cliBin?: string;
   cliArgs?: (spec: string, scope: Scope, root: string, env: Record<string, string>) => string[];
+  cliRemoveArgs?: (scope: Scope) => string[];
   /** Heuristic: does this tool look installed? (used to pre-select). */
   installedHint?: () => boolean;
 }
@@ -36,6 +37,7 @@ export const CLIENTS: ClientDef[] = [
       ...Object.entries(env).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
       '--', 'npx', '-y', spec,
     ],
+    cliRemoveArgs: (scope) => ['mcp', 'remove', 'blocks-translation', '-s', scope === 'global' ? 'user' : 'project'],
     json: (scope, root) => (scope === 'project' ? join(root, '.mcp.json') : join(home, '.claude.json')),
     installedHint: () => existsSync(join(home, '.claude.json')) || existsSync(join(home, '.claude')),
   },
@@ -49,6 +51,7 @@ export const CLIENTS: ClientDef[] = [
       ...Object.entries(env).flatMap(([k, v]) => ['--env', `${k}=${v}`]),
       '--', 'npx', '-y', spec,
     ],
+    cliRemoveArgs: () => ['mcp', 'remove', 'blocks-translation'],
     json: () => undefined, // config.toml — no safe JSON edit; snippet fallback when CLI absent
     snippetFormat: 'toml',
     installedHint: () => existsSync(join(home, '.codex')),

@@ -13,3 +13,16 @@ export function upsertMcpServer(
     [wrapperKey]: { ...existingWrapper, [key]: entry },
   };
 }
+
+/** Removes config[wrapperKey][key] if present, preserving everything else. Returns whether it
+ *  changed anything, plus the new object. Pure. */
+export function removeMcpServer(
+  config: Record<string, unknown>,
+  key: string,
+  wrapperKey: 'mcpServers' | 'servers' | 'context_servers',
+): { changed: boolean; config: Record<string, unknown> } {
+  const wrapper = config[wrapperKey] as Record<string, unknown> | undefined;
+  if (!wrapper || !(key in wrapper)) return { changed: false, config };
+  const { [key]: _removed, ...rest } = wrapper;
+  return { changed: true, config: { ...config, [wrapperKey]: rest } };
+}
