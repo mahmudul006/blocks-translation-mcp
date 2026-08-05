@@ -79,9 +79,20 @@ function renderSnippet(wrapperKey: string, entry: object, format: 'json' | 'toml
   return JSON.stringify({ [wrapperKey]: { 'blocks-translation': entry } }, null, 2);
 }
 
+function getFlag(args: string[], name: string): string | undefined {
+  const eq = args.find((a) => a.startsWith(`--${name}=`));
+  if (eq) return eq.slice(name.length + 3);
+  const i = args.indexOf(`--${name}`);
+  if (i >= 0 && args[i + 1] && !args[i + 1].startsWith('--')) return args[i + 1];
+  return undefined;
+}
+
 export async function runInstaller(args: string[]): Promise<void> {
   const dryRun = args.includes('--print') || args.includes('--dry-run');
   const auto = args.includes('--yes') || args.includes('-y');
+  const scopeFlag = getFlag(args, 'scope');
+  const rootFlag = getFlag(args, 'root');
+  const clientsFlag = getFlag(args, 'clients');
 
   const spec = readRepoSpec();
   console.log(`\nBlocks Translation MCP installer`);
@@ -94,12 +105,12 @@ export async function runInstaller(args: string[]): Promise<void> {
     return a || def;
   };
 
-  const scope = ((await ask('Install scope — "global" (all projects) or "project" (this repo only)?', 'project')).toLowerCase().startsWith('g')
+  const scope = ((scopeFlag ?? (await ask('Install scope — "global" (all projects) or "project" (this repo only)?', 'project'))).toLowerCase().startsWith('g')
     ? 'global'
     : 'project') as Scope;
 
   let root = process.cwd();
-  if (scope === 'project') root = await ask('Project root', process.cwd());
+  if (scope === 'project') root = rootFlag ?? (await ask('Project root', process.cwd()));
 
   // Project scope pins the project root so clients that don't set cwd still resolve config.
   const env: Record<string, string> = scope === 'project' ? { BLOCKS_PROJECT_ROOT: root } : {};
@@ -118,7 +129,7 @@ export async function runInstaller(args: string[]): Promise<void> {
   });
 
   const defaultPick = candidates.map((c, i) => (c.installed ? i + 1 : null)).filter(Boolean).join(',') || 'all';
-  const pick = await ask('\nConfigure which? (comma numbers, or "all")', defaultPick);
+  const pick = clientsFlag ?? (await ask('\nConfigure which? (comma numbers, or "all")', defaultPick));
   const chosen =
     pick.toLowerCase() === 'all'
       ? candidates
@@ -173,11 +184,19 @@ export async function runInstaller(args: string[]): Promise<void> {
   if (failed.length) { console.log('\nSkipped (fix and retry, or paste manually):'); failed.forEach((f) => console.log(`  • ${f}`)); }
 
   console.log('\nNext steps:');
-  console.log(`  1. Fill in ${join(root, '.env.blocks-translation')} (BLOCKS_TENANT_ID, PORTAL_KEY, USERNAME, PASSWORD).`);
+  if (scope === 'project') {
+    console.log(`  1. Fill in ${join(root, '.env.blocks-translation')} (BLOCKS_TENANT_ID, PORTAL_KEY, USERNAME, PASSWORD).`);
+  } else {
+    console.log("  1. In EACH project where you'll use this, create a `.env.blocks-translation` at THAT project's root");
+    console.log('     (copy .env.blocks-translation.example) and fill it in. The server reads it from the project you run');
+    console.log('     in — do NOT put it in your home directory.');
+  }
   console.log('  2. Restart your AI tool so it picks up the new server, then ask it to "sync the translation keys".');
   if (scope === 'global') {
-    console.log('  Note: a global install has no fixed project root — it works in clients that set the server cwd to your project');
-    console.log('        (Claude Code, project-local Pi). For others, prefer a per-project install.');
+    console.log('  Note: a global install has no fixed project root — it resolves config from whichever project the client');
+    console.log('        runs the server in. That works cleanly where the client sets the server cwd to your project');
+    console.log('        (Claude Code, project-local Pi). For Cursor / Windsurf / VS Code / etc., a per-project install');
+    console.log('        (run this from inside the project and choose "project") is more reliable.');
   }
   console.log('');
 }
