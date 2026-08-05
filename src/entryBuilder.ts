@@ -1,0 +1,29 @@
+import { randomUUID } from 'node:crypto';
+import type { BlocksUploadEntry, TranslatedResource } from './types.js';
+
+export function assembleUploadEntries(
+  moduleId: string,
+  tenantId: string,
+  entries: { keyName: string; resources: TranslatedResource[] }[],
+  cultures: string[],
+): BlocksUploadEntry[] {
+  return entries.map(({ keyName, resources }) => {
+    const providedCultures = new Set(resources.map((r) => r.culture));
+    const isPartiallyTranslated = !cultures.every((c) => providedCultures.has(c));
+
+    return {
+      _id: randomUUID(),
+      TenantId: tenantId,
+      KeyName: keyName,
+      ModuleId: moduleId,
+      Value: null,
+      Resources: resources.map((r) => ({
+        Value: r.value,
+        Culture: r.culture,
+        CharacterLength: 0,
+      })),
+      Routes: [],
+      IsPartiallyTranslated: isPartiallyTranslated,
+    };
+  });
+}

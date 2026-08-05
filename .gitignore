@@ -1,0 +1,18 @@
+node_modules/
+dist/
+# Real per-project config and secrets — never commit. The .example is committed.
+.env
+.env.*
+!.env.blocks-translation.example
+# Per-project caches
+.module-cache.json
+.blocks-translation-cache.json
+# Local scratch
+login-test.sh
+.remember/
+# Local API capture — contains a real tenant id + captured JWT; never publish
+blocks-api-capture.md
+# Internal design/process artifacts — not needed by consumers.
+# (One plan file also contains the real tenant id + portal key.) Keep local.
+.superpowers/
+docs/superpowers/
