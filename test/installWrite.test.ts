@@ -2,13 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { applyJson, removeJson, serverEntry } from '../src/install/installer.js';
 
-test('serverEntry injects a PATH containing the running node bin dir', () => {
+test('serverEntry uses an absolute npx command + a PATH with the node bin dir', () => {
   const e = serverEntry({ id: 'x', label: 'X', wrapperKey: 'mcpServers' }, 'github:a/b', {}) as any;
-  assert.equal(e.command, 'npx');
+  const npxName = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  // Absolute path to the bundled npx (or bare fallback if it somehow isn't there).
+  assert.ok(e.command === join(dirname(process.execPath), npxName) || e.command === 'npx');
   assert.ok(e.env && typeof e.env.PATH === 'string');
   assert.ok(e.env.PATH.split(process.platform === 'win32' ? ';' : ':').includes(dirname(process.execPath)));
 });

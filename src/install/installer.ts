@@ -11,17 +11,29 @@ import { upsertMcpServer, removeMcpServer } from './mergeJson.js';
 const run = promisify(execFile);
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url)); // dist/install/ -> repo root
 
-/**
- * PATH that guarantees `node`/`npx` resolve when a GUI client (Antigravity, Cursor,
- * Windsurf, VS Code) spawns the server without the user's shell PATH. The installer
- * runs under node, so process.execPath's dir is the active node/npx bin dir on THIS
- * machine — computed fresh on every user's machine, so no path is ever hard-shipped.
- */
+// A GUI client (Antigravity, Cursor, Windsurf, VS Code) spawns the server WITHOUT the
+// user's shell PATH, and it resolves `command` against its own (stripped) PATH *before*
+// applying the entry's env.PATH. So two things are needed on those machines:
+//   1. an ABSOLUTE `command` so the host can exec it at all, and
+//   2. an env.PATH so npx's `#!/usr/bin/env node` shebang + child `node`/`git` resolve.
+// The installer runs under node, so process.execPath's dir is the active node/npx bin dir
+// on THIS machine — computed fresh per user, so no path is ever hard-shipped.
+
+/** Absolute path to the npx bundled with the running node; falls back to bare "npx". */
+function npxCommand(): string {
+  const nodeDir = dirname(process.execPath);
+  const abs = join(nodeDir, process.platform === 'win32' ? 'npx.cmd' : 'npx');
+  return existsSync(abs) ? abs : 'npx';
+}
+
+/** Clean, stable PATH for the spawned server: node bin dir + standard system dirs. */
 function runtimePath(): string {
   const nodeDir = dirname(process.execPath);
-  const sep = process.platform === 'win32' ? ';' : ':';
-  const existing = process.env.PATH || '';
-  return existing.split(sep).includes(nodeDir) ? existing : `${nodeDir}${sep}${existing}`;
+  if (process.platform === 'win32') {
+    const existing = process.env.PATH || '';
+    return existing.split(';').includes(nodeDir) ? existing : `${nodeDir};${existing}`;
+  }
+  return [nodeDir, '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'].join(':');
 }
 
 type Action =
@@ -37,10 +49,10 @@ function readRepoSpec(): string {
 }
 
 export function serverEntry(client: ClientDef, spec: string, env: Record<string, string>): object {
-  const base: Record<string, unknown> = { command: 'npx', args: ['-y', spec] };
+  const base: Record<string, unknown> = { command: npxCommand(), args: ['-y', spec] };
   if (client.vscodeStyle) base.type = 'stdio';
-  // GUI-spawned servers (json/snippet clients) get a PATH so `npx`/`node` resolve
-  // even when launched without the user's shell. CLI clients inherit shell PATH already.
+  // GUI-spawned servers (json/snippet clients) get a PATH so npx's node shebang + child
+  // node/git resolve even when launched without the user's shell. CLI clients skip this.
   base.env = { PATH: runtimePath(), ...env };
   return base;
 }
