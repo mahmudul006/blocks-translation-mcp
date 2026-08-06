@@ -101,6 +101,8 @@ npx -y github:mahmudul006/blocks-translation-mcp
 
 Only two things differ per client: **where** the config lives and its **wrapper key** (`mcpServers` JSON, VS Code's `servers`, Zed's `context_servers`, or Codex's TOML). If your client doesn't start the server with its working directory set to your project root, add `"BLOCKS_PROJECT_ROOT": "/abs/path/to/your/project"` to the server's `env` (see [How the server finds your project](#how-the-server-finds-your-project)).
 
+> **GUI clients + nvm:** the one-command installer handles this, but if you configure a **GUI** client (Antigravity, Cursor, Windsurf, VS Code) by hand and Node is installed via **nvm**, also add your Node bin dir to `env.PATH` — otherwise the tool can't find `npx`/`node`. See [Troubleshooting](#troubleshooting). Command-line clients (Claude Code, Codex) don't need it.
+
 ### Claude Code
 
 ```bash
@@ -151,7 +153,7 @@ codex mcp add blocks-translation --env BLOCKS_PROJECT_ROOT=/abs/path/to/your/pro
 
 ### Google Antigravity
 
-In the IDE: **Manage MCP Servers → View raw config**, or edit `.agents/mcp_config.json` (workspace) / `~/.gemini/antigravity-cli/mcp_config.json` (global):
+In the IDE: **Manage MCP Servers → View raw config**, or edit `.agents/mcp_config.json` (workspace) / `~/.gemini/config/mcp_config.json` (global):
 
 ```json
 { "mcpServers": { "blocks-translation": {
@@ -290,6 +292,18 @@ So: on Claude Code (and project-local Pi) it just works; on other clients, set `
 **Missing admin credentials** (`BLOCKS_USERNAME`/`BLOCKS_PASSWORD`/`BLOCKS_PORTAL_KEY` not set) — `prepare_sync`, `list_modules`, and language lookups use the admin surface. Set all three.
 
 **`406 Invalid_Origin_Or_Referer`** — your Blocks deployment isn't the default cloud host. Set `BLOCKS_ORIGIN` to your portal's origin.
+
+**`exec: "npx": executable file not found in $PATH`** / **`/usr/bin/env: 'node': No such file or directory`** — a GUI-launched client (Antigravity, Cursor, Windsurf, VS Code) spawned the server without your shell's `PATH`, so `node`/`npx` aren't found. This is common when Node is installed via **nvm** (its bin dir is only on `PATH` inside a shell that sourced nvm). The one-command installer fixes this automatically by writing a `PATH` into the server's `env`. If you configured the client by hand, add your Node bin dir to the entry's `env.PATH` (find it with `dirname $(readlink -f $(which npx))`):
+
+```json
+"blocks-translation": {
+  "command": "npx",
+  "args": ["-y", "github:mahmudul006/blocks-translation-mcp"],
+  "env": { "PATH": "/home/you/.nvm/versions/node/vX.Y.Z/bin:/usr/bin:/bin" }
+}
+```
+
+CLI-installed clients (Claude Code, Codex) don't need this — they inherit your shell `PATH`.
 
 **`find_keys`/`prepare_sync` git error** — they run `git` in the project root. Ensure the project is a git repo and `git` is on `PATH`; if your client doesn't set `cwd`, set `BLOCKS_PROJECT_ROOT`.
 

@@ -11,6 +11,19 @@ import { upsertMcpServer, removeMcpServer } from './mergeJson.js';
 const run = promisify(execFile);
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url)); // dist/install/ -> repo root
 
+/**
+ * PATH that guarantees `node`/`npx` resolve when a GUI client (Antigravity, Cursor,
+ * Windsurf, VS Code) spawns the server without the user's shell PATH. The installer
+ * runs under node, so process.execPath's dir is the active node/npx bin dir on THIS
+ * machine — computed fresh on every user's machine, so no path is ever hard-shipped.
+ */
+function runtimePath(): string {
+  const nodeDir = dirname(process.execPath);
+  const sep = process.platform === 'win32' ? ';' : ':';
+  const existing = process.env.PATH || '';
+  return existing.split(sep).includes(nodeDir) ? existing : `${nodeDir}${sep}${existing}`;
+}
+
 type Action =
   | { kind: 'cli'; bin: string; args: string[] }
   | { kind: 'json'; path: string; wrapperKey: 'mcpServers' | 'servers' | 'context_servers'; entry: object }
@@ -23,10 +36,12 @@ function readRepoSpec(): string {
   return npxSpecFromRepository(String(url));
 }
 
-function serverEntry(client: ClientDef, spec: string, env: Record<string, string>): object {
+export function serverEntry(client: ClientDef, spec: string, env: Record<string, string>): object {
   const base: Record<string, unknown> = { command: 'npx', args: ['-y', spec] };
   if (client.vscodeStyle) base.type = 'stdio';
-  if (Object.keys(env).length > 0) base.env = env;
+  // GUI-spawned servers (json/snippet clients) get a PATH so `npx`/`node` resolve
+  // even when launched without the user's shell. CLI clients inherit shell PATH already.
+  base.env = { PATH: runtimePath(), ...env };
   return base;
 }
 
@@ -111,8 +126,25 @@ function getFlag(args: string[], name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Warns if `npx` isn't resolvable, so the user gets a clear message instead of a
+ * cryptic "npx: not found" from their AI tool after install. The installer runs under
+ * node, so node exists; this catches a partial/broken install where npx is missing.
+ */
+function preflightNode(): void {
+  const nodeDir = dirname(process.execPath);
+  const npxName = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  if (existsSync(join(nodeDir, npxName)) || binOnPath(npxName) || binOnPath('npx')) return;
+  console.log(
+    `\n⚠ Warning: couldn't find "npx" next to your Node (${nodeDir}).\n` +
+      `  The server is launched with "npx", so it may fail to start. Ensure npm/npx is installed\n` +
+      `  (they ship with Node — reinstall Node from https://nodejs.org or your version manager).\n`,
+  );
+}
+
 export async function runInstaller(args: string[]): Promise<void> {
   const dryRun = args.includes('--print') || args.includes('--dry-run');
+  preflightNode();
   const auto = args.includes('--yes') || args.includes('-y');
   const scopeFlag = getFlag(args, 'scope');
   const rootFlag = getFlag(args, 'root');

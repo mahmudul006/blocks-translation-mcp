@@ -3,7 +3,21 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyJson, removeJson } from '../src/install/installer.js';
+import { dirname } from 'node:path';
+import { applyJson, removeJson, serverEntry } from '../src/install/installer.js';
+
+test('serverEntry injects a PATH containing the running node bin dir', () => {
+  const e = serverEntry({ id: 'x', label: 'X', wrapperKey: 'mcpServers' }, 'github:a/b', {}) as any;
+  assert.equal(e.command, 'npx');
+  assert.ok(e.env && typeof e.env.PATH === 'string');
+  assert.ok(e.env.PATH.split(process.platform === 'win32' ? ';' : ':').includes(dirname(process.execPath)));
+});
+
+test('serverEntry keeps caller env (e.g. BLOCKS_PROJECT_ROOT) alongside PATH', () => {
+  const e = serverEntry({ id: 'x', label: 'X', wrapperKey: 'mcpServers' }, 'github:a/b', { BLOCKS_PROJECT_ROOT: '/repo' }) as any;
+  assert.equal(e.env.BLOCKS_PROJECT_ROOT, '/repo');
+  assert.ok(e.env.PATH.length > 0);
+});
 
 test('applyJson creates the file + parent dir when absent', () => {
   const dir = mkdtempSync(join(tmpdir(), 'blocks-inst-'));
